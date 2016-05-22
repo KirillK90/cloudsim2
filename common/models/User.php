@@ -1,10 +1,14 @@
 <?php
 namespace common\models;
 
+use common\enums\UserRole;
+use common\enums\UserStatus;
 use Yii;
 use yii\base\NotSupportedException;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
+use yii\db\Expression;
+use yii\helpers\Url;
 use yii\web\IdentityInterface;
 
 /**
@@ -16,23 +20,27 @@ use yii\web\IdentityInterface;
  * @property string $password_reset_token
  * @property string $email
  * @property string $auth_key
+ * @property string $role
  * @property integer $status
  * @property integer $created_at
  * @property integer $updated_at
  * @property string $password write-only password
+ *
+ * @method void touch($param)
  */
 class User extends ActiveRecord implements IdentityInterface
 {
-    const STATUS_DELETED = 0;
-    const STATUS_ACTIVE = 10;
 
+    public $newPassword;
+
+    const SCENARIO_ADMIN_INSERT = 'scenario_admin_insert';
 
     /**
      * @inheritdoc
      */
     public static function tableName()
     {
-        return '{{%user}}';
+        return 'user';
     }
 
     /**
@@ -41,7 +49,11 @@ class User extends ActiveRecord implements IdentityInterface
     public function behaviors()
     {
         return [
-            TimestampBehavior::className(),
+            [
+                'class' => TimestampBehavior::className(),
+                'value' => new Expression('NOW()')
+            ]
+
         ];
     }
 
@@ -51,8 +63,30 @@ class User extends ActiveRecord implements IdentityInterface
     public function rules()
     {
         return [
-            ['status', 'default', 'value' => self::STATUS_ACTIVE],
-            ['status', 'in', 'range' => [self::STATUS_ACTIVE, self::STATUS_DELETED]],
+            [['username', 'auth_key'], 'required'],
+            [['email', 'password_hash'], 'required'],
+            [['email'], 'email'],
+            [['email'], 'unique'],
+            [['role'], 'default', 'value' => UserRole::GUEST],
+            [['role'], 'in', 'range' => UserRole::getValues()],
+            [['newPassword'], 'required', 'on' => self::SCENARIO_ADMIN_INSERT],
+            ['status', 'default', 'value' => UserStatus::ACTIVE],
+            ['status', 'in', 'range' => UserStatus::getValues()],
+            [['newPassword'], 'string', 'length' => [6, 25], 'message' => 'Пароль слишком простой, минимум 6 символов'],
+        ];
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'username' => 'Имя',
+            'password' => 'Пароль',
+            'newPassword' => 'Новый пароль',
+            'status' => 'Статус',
+            'role' => 'Роль',
+            'email' => 'Почта',
+            'created_at' => 'Создан',
+            'updated_at' => 'Обновлен',
         ];
     }
 
@@ -61,7 +95,7 @@ class User extends ActiveRecord implements IdentityInterface
      */
     public static function findIdentity($id)
     {
-        return static::findOne(['id' => $id, 'status' => self::STATUS_ACTIVE]);
+        return static::findOne(['id' => $id, 'status' => UserStatus::ACTIVE]);
     }
 
     /**
@@ -75,12 +109,12 @@ class User extends ActiveRecord implements IdentityInterface
     /**
      * Finds user by username
      *
-     * @param string $username
+     * @param string $email
      * @return static|null
      */
-    public static function findByUsername($username)
+    public static function findByEmail($email)
     {
-        return static::findOne(['username' => $username, 'status' => self::STATUS_ACTIVE]);
+        return static::findOne(['email' => $email, 'status' => UserStatus::ACTIVE]);
     }
 
     /**
@@ -97,7 +131,7 @@ class User extends ActiveRecord implements IdentityInterface
 
         return static::findOne([
             'password_reset_token' => $token,
-            'status' => self::STATUS_ACTIVE,
+            'status' => UserStatus::ACTIVE,
         ]);
     }
 
@@ -185,5 +219,10 @@ class User extends ActiveRecord implements IdentityInterface
     public function removePasswordResetToken()
     {
         $this->password_reset_token = null;
+    }
+
+    public function getAdminUrl()
+    {
+        return Url::to(['/users/update', 'id' => $this->id]);
     }
 }

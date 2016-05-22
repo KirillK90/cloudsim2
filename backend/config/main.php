@@ -11,11 +11,24 @@ return [
     'basePath' => dirname(__DIR__),
     'controllerNamespace' => 'backend\controllers',
     'bootstrap' => ['log'],
+    'language' => "ru-RU",
+    'name' => 'Облачный симулятор',
     'modules' => [],
     'components' => [
         'user' => [
             'identityClass' => 'common\models\User',
             'enableAutoLogin' => true,
+        ],
+        'view' => [
+            'class' => 'backend\components\View',
+        ],
+        'assetManager' => [
+            'class' => 'yii\web\AssetManager',
+            'forceCopy' => YII_DEBUG,
+        ],
+        'formatter' => [
+            'dateFormat' => 'php:Y-m-d',
+            'datetimeFormat' => 'php:d.m.Y H:i'
         ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,
@@ -29,14 +42,14 @@ return [
         'errorHandler' => [
             'errorAction' => 'site/error',
         ],
-        /*
+
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
             ],
         ],
-        */
+
     ],
     'params' => $params,
 ];
